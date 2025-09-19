@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>中国发往全球的货运动态地图</title>
+    <script src="https://cdn.jsdelivr.net/npm/echarts@5/dist/echarts.min.js"></script>
+    <style>
+        * {
+            box-sizing: border-box;
+        }
+
+        body {
+            margin: 0;
+            min-height: 100vh;
+            font-family: "Microsoft YaHei", "Segoe UI", sans-serif;
+            background: radial-gradient(circle at 20% 20%, #0f3d6d 0%, #07131f 45%, #02040a 100%);
+            color: #d7e9ff;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            overflow: hidden;
+        }
+
+        h1 {
+            font-weight: 500;
+            letter-spacing: 0.12em;
+            text-transform: uppercase;
+            margin: 16px 0 0;
+            color: #7ec7ff;
+            text-shadow: 0 0 12px rgba(126, 199, 255, 0.65);
+        }
+
+        p.subtitle {
+            margin: 6px 0 20px;
+            font-size: 14px;
+            letter-spacing: 0.2em;
+            color: rgba(200, 233, 255, 0.7);
+        }
+
+        #chart-container {
+            width: min(96vw, 1400px);
+            height: min(80vh, 820px);
+            border-radius: 24px;
+            position: relative;
+            overflow: hidden;
+            backdrop-filter: blur(6px);
+            background: rgba(2, 12, 24, 0.6);
+            box-shadow: 0 24px 64px rgba(3, 22, 45, 0.45), inset 0 0 60px rgba(126, 199, 255, 0.15);
+        }
+
+        .glow-ring {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+        }
+
+        .glow-ring::before,
+        .glow-ring::after {
+            content: "";
+            position: absolute;
+            inset: -40%;
+            border-radius: 50%;
+            background: conic-gradient(from 0deg, rgba(0, 162, 255, 0.15), transparent 55%, rgba(255, 255, 255, 0.05), rgba(0, 162, 255, 0.2));
+            animation: rotate 18s linear infinite;
+            filter: blur(32px);
+        }
+
+        .glow-ring::after {
+            inset: -20%;
+            animation-duration: 24s;
+            animation-direction: reverse;
+        }
+
+        @keyframes rotate {
+            0% {
+                transform: rotate(0deg);
+            }
+            100% {
+                transform: rotate(360deg);
+            }
+        }
+
+        footer {
+            margin-top: 20px;
+            font-size: 12px;
+            letter-spacing: 0.08em;
+            color: rgba(210, 230, 255, 0.4);
+        }
+    </style>
+</head>
+<body>
+    <h1>中国·全球供应链枢纽</h1>
+    <p class="subtitle">Cargo Routes Radiating From China</p>
+    <div id="chart-container">
+        <div class="glow-ring"></div>
+    </div>
+    <footer>动态流线展示全球重点航线，仅示意参考</footer>
+
+    <script>
+        const chartDom = document.getElementById('chart-container');
+        const chart = echarts.init(chartDom);
+
+        const geoCoordMap = {
+            '中国·北京': [116.4074, 39.9042],
+            '中国·上海': [121.4737, 31.2304],
+            '洛杉矶': [-118.2437, 34.0522],
+            '纽约': [-74.006, 40.7128],
+            '圣保罗': [-46.6333, -23.55],
+            '伦敦': [-0.1276, 51.5072],
+            '汉堡': [9.9937, 53.5511],
+            '迪拜': [55.2708, 25.2048],
+            '约翰内斯堡': [28.0473, -26.2041],
+            '悉尼': [151.2093, -33.8688],
+            '墨尔本': [144.9631, -37.8136],
+            '孟买': [72.8777, 19.076],
+            '新加坡': [103.8198, 1.3521],
+            '东京': [139.6917, 35.6895],
+            '仁川': [126.978, 37.5665],
+            '温哥华': [-123.1207, 49.2827],
+            '鹿特丹': [4.4777, 51.9244],
+            '多伦多': [-79.3832, 43.6532],
+            '墨西哥城': [-99.1332, 19.4326],
+            '开罗': [31.2357, 30.0444]
+        };
+
+        const routes = [
+            { from: '中国·上海', to: '洛杉矶', value: 95 },
+            { from: '中国·北京', to: '纽约', value: 88 },
+            { from: '中国·上海', to: '圣保罗', value: 78 },
+            { from: '中国·上海', to: '伦敦', value: 96 },
+            { from: '中国·北京', to: '汉堡', value: 72 },
+            { from: '中国·上海', to: '迪拜', value: 68 },
+            { from: '中国·北京', to: '约翰内斯堡', value: 58 },
+            { from: '中国·上海', to: '悉尼', value: 83 },
+            { from: '中国·北京', to: '孟买', value: 76 },
+            { from: '中国·上海', to: '新加坡', value: 82 },
+            { from: '中国·北京', to: '东京', value: 75 },
+            { from: '中国·上海', to: '仁川', value: 70 },
+            { from: '中国·上海', to: '温哥华', value: 79 },
+            { from: '中国·上海', to: '鹿特丹', value: 91 },
+            { from: '中国·北京', to: '多伦多', value: 67 },
+            { from: '中国·上海', to: '墨西哥城', value: 55 },
+            { from: '中国·北京', to: '开罗', value: 62 },
+            { from: '中国·上海', to: '墨尔本', value: 74 }
+        ];
+
+        function convertLinesData(data) {
+            return data
+                .map((item) => {
+                    const fromCoord = geoCoordMap[item.from];
+                    const toCoord = geoCoordMap[item.to];
+                    if (fromCoord && toCoord) {
+                        return {
+                            coords: [fromCoord, toCoord],
+                            value: item.value,
+                            lineStyle: { width: Math.max(1.5, item.value / 40) }
+                        };
+                    }
+                    return null;
+                })
+                .filter(Boolean);
+        }
+
+        function convertScatterData(data) {
+            return data
+                .map((item) => {
+                    const coord = geoCoordMap[item.to];
+                    if (coord) {
+                        return {
+                            name: item.to,
+                            value: coord.concat(item.value),
+                            symbolSize: Math.min(16, Math.max(8, item.value / 6)),
+                            rippleEffect: {
+                                scale: 4
+                            }
+                        };
+                    }
+                    return null;
+                })
+                .filter(Boolean);
+        }
+
+        const baseLines = convertLinesData(routes);
+        const scatterData = convertScatterData(routes);
+
+        const option = {
+            backgroundColor: 'transparent',
+            title: {
+                text: '中国联通全球·智慧物流网络',
+                left: 'center',
+                top: 18,
+                textStyle: {
+                    color: '#aee8ff',
+                    fontSize: 20,
+                    fontWeight: 400,
+                    letterSpacing: 6,
+                    textBorderColor: 'rgba(10, 40, 85, 0.7)',
+                    textBorderWidth: 2
+                }
+            },
+            tooltip: {
+                trigger: 'item',
+                backgroundColor: 'rgba(3, 15, 34, 0.85)',
+                borderColor: '#3ab5ff',
+                borderWidth: 1,
+                textStyle: {
+                    color: '#e4f5ff'
+                },
+                formatter: (params) => {
+                    if (params.seriesType === 'lines') {
+                        const [from, to] = params.data.coords;
+                        const fromName = Object.keys(geoCoordMap).find(
+                            (key) => geoCoordMap[key][0] === from[0] && geoCoordMap[key][1] === from[1]
+                        );
+                        const toName = Object.keys(geoCoordMap).find(
+                            (key) => geoCoordMap[key][0] === to[0] && geoCoordMap[key][1] === to[1]
+                        );
+                        return `${fromName || '中国'} → ${toName || ''}<br/>货运指数：${params.data.value}`;
+                    }
+                    if (params.seriesType === 'effectScatter') {
+                        return `${params.name}<br/>货运指数：${params.value[2]}`;
+                    }
+                    return params.name;
+                }
+            },
+            geo: {
+                map: 'world',
+                roam: true,
+                zoom: 1.2,
+                center: [110, 30],
+                label: {
+                    show: false
+                },
+                itemStyle: {
+                    areaColor: '#07274b',
+                    borderColor: '#1f5f99',
+                    borderWidth: 0.6,
+                    shadowColor: 'rgba(0, 0, 0, 0.4)',
+                    shadowBlur: 15
+                },
+                emphasis: {
+                    itemStyle: {
+                        areaColor: '#145ea8'
+                    }
+                }
+            },
+            visualMap: {
+                min: 40,
+                max: 100,
+                calculable: true,
+                orient: 'vertical',
+                right: 30,
+                bottom: 30,
+                inRange: {
+                    color: ['#3a7bd5', '#00d2ff', '#72ffb6']
+                },
+                textStyle: {
+                    color: '#c8f2ff'
+                }
+            },
+            series: [
+                {
+                    name: '基础航线',
+                    type: 'lines',
+                    coordinateSystem: 'geo',
+                    zlevel: 1,
+                    effect: {
+                        show: true,
+                        period: 6,
+                        trailLength: 0.2,
+                        color: '#72ffb6',
+                        symbol: 'arrow',
+                        symbolSize: 6
+                    },
+                    lineStyle: {
+                        color: '#01c3ff',
+                        width: 1,
+                        opacity: 0.45,
+                        curveness: 0.25
+                    },
+                    data: baseLines
+                },
+                {
+                    name: '高光航线',
+                    type: 'lines',
+                    coordinateSystem: 'geo',
+                    zlevel: 2,
+                    effect: {
+                        show: true,
+                        period: 4,
+                        trailLength: 0.05,
+                        color: '#ffe066',
+                        symbolSize: 10
+                    },
+                    lineStyle: {
+                        color: '#ffea6e',
+                        width: 3,
+                        opacity: 0.9,
+                        curveness: 0.28
+                    },
+                    data: []
+                },
+                {
+                    name: '全球节点',
+                    type: 'effectScatter',
+                    coordinateSystem: 'geo',
+                    zlevel: 3,
+                    rippleEffect: {
+                        brushType: 'stroke'
+                    },
+                    label: {
+                        show: true,
+                        position: 'right',
+                        formatter: '{b}',
+                        color: '#dff9ff',
+                        fontSize: 12
+                    },
+                    itemStyle: {
+                        color: '#00ffd5'
+                    },
+                    data: scatterData
+                },
+                {
+                    name: '中国枢纽',
+                    type: 'effectScatter',
+                    coordinateSystem: 'geo',
+                    zlevel: 4,
+                    rippleEffect: {
+                        brushType: 'stroke',
+                        scale: 6
+                    },
+                    label: {
+                        show: true,
+                        formatter: '{b}',
+                        position: 'right',
+                        color: '#ffe6a6'
+                    },
+                    symbolSize: 16,
+                    itemStyle: {
+                        color: '#ff8c6a',
+                        shadowBlur: 20,
+                        shadowColor: 'rgba(255, 140, 106, 0.6)'
+                    },
+                    data: [
+                        { name: '中国·北京', value: geoCoordMap['中国·北京'].concat(120) },
+                        { name: '中国·上海', value: geoCoordMap['中国·上海'].concat(135) }
+                    ]
+                }
+            ]
+        };
+
+        chart.setOption(option);
+
+        let highlightIndex = 0;
+        function highlightNextRoute() {
+            const route = routes[highlightIndex];
+            const highlightData = convertLinesData([route]);
+            chart.setOption({
+                series: [
+                    {},
+                    {
+                        data: highlightData,
+                        effect: {
+                            period: 3 + Math.random() * 1.5
+                        }
+                    }
+                ]
+            });
+
+            chart.dispatchAction({ type: 'downplay', seriesIndex: 2 });
+            chart.dispatchAction({
+                type: 'highlight',
+                seriesIndex: 2,
+                name: route.to
+            });
+
+            highlightIndex = (highlightIndex + 1) % routes.length;
+        }
+
+        highlightNextRoute();
+        setInterval(highlightNextRoute, 3600);
+
+        window.addEventListener('resize', () => chart.resize());
+    </script>
+</body>
+</html>
