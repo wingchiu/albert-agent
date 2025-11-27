@@ -1,0 +1,855 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>中国象棋 - Chinese Chess (Xiangqi)</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'SimSun', 'Arial Unicode MS', sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .game-container {
+            background: #f5e6d3;
+            border-radius: 10px;
+            padding: 30px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+        }
+
+        h1 {
+            text-align: center;
+            color: #8b4513;
+            margin-bottom: 20px;
+            font-size: 2em;
+            text-shadow: 2px 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .info-panel {
+            text-align: center;
+            margin-bottom: 15px;
+            padding: 10px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 5px;
+        }
+
+        .current-turn {
+            font-size: 1.2em;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .turn-red {
+            color: #d32f2f;
+        }
+
+        .turn-black {
+            color: #212121;
+        }
+
+        .status-message {
+            font-size: 1em;
+            color: #555;
+            min-height: 24px;
+        }
+
+        .board-container {
+            background: #daa520;
+            padding: 20px;
+            border-radius: 5px;
+            box-shadow: inset 0 0 10px rgba(0, 0, 0, 0.3);
+        }
+
+        #board {
+            display: grid;
+            grid-template-columns: repeat(9, 50px);
+            grid-template-rows: repeat(10, 50px);
+            gap: 0;
+            background: #f4e4c1;
+            border: 3px solid #8b4513;
+            position: relative;
+        }
+
+        .cell {
+            width: 50px;
+            height: 50px;
+            position: relative;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .cell::before {
+            content: '';
+            position: absolute;
+            width: 100%;
+            height: 100%;
+            border-right: 1px solid #8b4513;
+            border-bottom: 1px solid #8b4513;
+            pointer-events: none;
+        }
+
+        .cell.first-col::before {
+            border-left: 1px solid #8b4513;
+        }
+
+        .cell.first-row::before {
+            border-top: 1px solid #8b4513;
+        }
+
+        .cell.river-top::after {
+            content: '';
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #4a90e2;
+            pointer-events: none;
+        }
+
+        .cell.river-bottom::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #4a90e2;
+            pointer-events: none;
+        }
+
+        .piece {
+            width: 44px;
+            height: 44px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            font-weight: bold;
+            cursor: pointer;
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.3);
+            transition: all 0.2s;
+            z-index: 10;
+        }
+
+        .piece:hover {
+            transform: scale(1.1);
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.4);
+        }
+
+        .piece.red {
+            background: radial-gradient(circle at 30% 30%, #ff6b6b, #d32f2f);
+            color: #fff;
+            border: 2px solid #8b0000;
+        }
+
+        .piece.black {
+            background: radial-gradient(circle at 30% 30%, #4a4a4a, #212121);
+            color: #fff;
+            border: 2px solid #000;
+        }
+
+        .piece.selected {
+            box-shadow: 0 0 15px 5px #ffd700;
+            transform: scale(1.15);
+        }
+
+        .cell.valid-move {
+            background: radial-gradient(circle, rgba(76, 175, 80, 0.3) 0%, transparent 70%);
+        }
+
+        .cell.valid-move::after {
+            content: '';
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: #4caf50;
+            border-radius: 50%;
+            z-index: 5;
+        }
+
+        .cell.can-capture {
+            background: radial-gradient(circle, rgba(244, 67, 54, 0.3) 0%, transparent 70%);
+        }
+
+        .cell.can-capture::after {
+            content: '';
+            position: absolute;
+            width: 40px;
+            height: 40px;
+            border: 3px solid #f44336;
+            border-radius: 50%;
+            z-index: 5;
+        }
+
+        .controls {
+            margin-top: 20px;
+            text-align: center;
+        }
+
+        button {
+            background: #8b4513;
+            color: white;
+            border: none;
+            padding: 10px 30px;
+            font-size: 16px;
+            border-radius: 5px;
+            cursor: pointer;
+            margin: 0 10px;
+            transition: background 0.3s;
+        }
+
+        button:hover {
+            background: #a0522d;
+        }
+
+        button:active {
+            transform: scale(0.95);
+        }
+
+        .palace-marker {
+            position: absolute;
+            pointer-events: none;
+            z-index: 1;
+        }
+
+        .palace-marker.red-palace {
+            width: 150px;
+            height: 150px;
+            left: 150px;
+            bottom: 0;
+            border-left: 1px solid #d32f2f;
+            border-right: 1px solid #d32f2f;
+            border-bottom: 1px solid #d32f2f;
+        }
+
+        .palace-marker.black-palace {
+            width: 150px;
+            height: 150px;
+            left: 150px;
+            top: 0;
+            border-left: 1px solid #212121;
+            border-right: 1px solid #212121;
+            border-top: 1px solid #212121;
+        }
+
+        .palace-diagonal {
+            position: absolute;
+            width: 141%;
+            height: 1px;
+            background: currentColor;
+            top: 50%;
+            left: -20%;
+            transform-origin: center;
+        }
+
+        .palace-diagonal.left {
+            transform: rotate(45deg);
+        }
+
+        .palace-diagonal.right {
+            transform: rotate(-45deg);
+        }
+    </style>
+</head>
+<body>
+    <div class="game-container">
+        <h1>中国象棋 Chinese Chess</h1>
+
+        <div class="info-panel">
+            <div class="current-turn" id="currentTurn">红方 (Red) 's Turn</div>
+            <div class="status-message" id="statusMessage">Select a piece to move</div>
+        </div>
+
+        <div class="board-container">
+            <div id="board"></div>
+        </div>
+
+        <div class="controls">
+            <button onclick="game.newGame()">New Game</button>
+            <button onclick="game.undoMove()">Undo</button>
+        </div>
+    </div>
+
+    <script>
+        class ChineseChess {
+            constructor() {
+                this.board = [];
+                this.currentPlayer = 'red'; // 'red' or 'black'
+                this.selectedPiece = null;
+                this.validMoves = [];
+                this.moveHistory = [];
+                this.initBoard();
+                this.renderBoard();
+                this.updateStatus();
+            }
+
+            initBoard() {
+                // Create empty 9x10 board
+                this.board = Array(10).fill(null).map(() => Array(9).fill(null));
+
+                // Red pieces (bottom)
+                this.board[9][0] = { type: 'chariot', color: 'red', char: '車' };
+                this.board[9][1] = { type: 'horse', color: 'red', char: '馬' };
+                this.board[9][2] = { type: 'elephant', color: 'red', char: '相' };
+                this.board[9][3] = { type: 'advisor', color: 'red', char: '仕' };
+                this.board[9][4] = { type: 'general', color: 'red', char: '帥' };
+                this.board[9][5] = { type: 'advisor', color: 'red', char: '仕' };
+                this.board[9][6] = { type: 'elephant', color: 'red', char: '相' };
+                this.board[9][7] = { type: 'horse', color: 'red', char: '馬' };
+                this.board[9][8] = { type: 'chariot', color: 'red', char: '車' };
+
+                this.board[7][1] = { type: 'cannon', color: 'red', char: '炮' };
+                this.board[7][7] = { type: 'cannon', color: 'red', char: '炮' };
+
+                this.board[6][0] = { type: 'soldier', color: 'red', char: '兵' };
+                this.board[6][2] = { type: 'soldier', color: 'red', char: '兵' };
+                this.board[6][4] = { type: 'soldier', color: 'red', char: '兵' };
+                this.board[6][6] = { type: 'soldier', color: 'red', char: '兵' };
+                this.board[6][8] = { type: 'soldier', color: 'red', char: '兵' };
+
+                // Black pieces (top)
+                this.board[0][0] = { type: 'chariot', color: 'black', char: '車' };
+                this.board[0][1] = { type: 'horse', color: 'black', char: '馬' };
+                this.board[0][2] = { type: 'elephant', color: 'black', char: '象' };
+                this.board[0][3] = { type: 'advisor', color: 'black', char: '士' };
+                this.board[0][4] = { type: 'general', color: 'black', char: '將' };
+                this.board[0][5] = { type: 'advisor', color: 'black', char: '士' };
+                this.board[0][6] = { type: 'elephant', color: 'black', char: '象' };
+                this.board[0][7] = { type: 'horse', color: 'black', char: '馬' };
+                this.board[0][8] = { type: 'chariot', color: 'black', char: '車' };
+
+                this.board[2][1] = { type: 'cannon', color: 'black', char: '砲' };
+                this.board[2][7] = { type: 'cannon', color: 'black', char: '砲' };
+
+                this.board[3][0] = { type: 'soldier', color: 'black', char: '卒' };
+                this.board[3][2] = { type: 'soldier', color: 'black', char: '卒' };
+                this.board[3][4] = { type: 'soldier', color: 'black', char: '卒' };
+                this.board[3][6] = { type: 'soldier', color: 'black', char: '卒' };
+                this.board[3][8] = { type: 'soldier', color: 'black', char: '卒' };
+            }
+
+            renderBoard() {
+                const boardElement = document.getElementById('board');
+                boardElement.innerHTML = '';
+
+                for (let row = 0; row < 10; row++) {
+                    for (let col = 0; col < 9; col++) {
+                        const cell = document.createElement('div');
+                        cell.className = 'cell';
+                        cell.dataset.row = row;
+                        cell.dataset.col = col;
+
+                        // Add border classes
+                        if (col === 0) cell.classList.add('first-col');
+                        if (row === 0) cell.classList.add('first-row');
+
+                        // Add river markers
+                        if (row === 4) cell.classList.add('river-top');
+                        if (row === 5) cell.classList.add('river-bottom');
+
+                        const piece = this.board[row][col];
+                        if (piece) {
+                            const pieceElement = document.createElement('div');
+                            pieceElement.className = `piece ${piece.color}`;
+                            pieceElement.textContent = piece.char;
+                            pieceElement.dataset.row = row;
+                            pieceElement.dataset.col = col;
+
+                            if (this.selectedPiece &&
+                                this.selectedPiece.row === row &&
+                                this.selectedPiece.col === col) {
+                                pieceElement.classList.add('selected');
+                            }
+
+                            cell.appendChild(pieceElement);
+                        }
+
+                        // Highlight valid moves
+                        if (this.validMoves.some(move => move.row === row && move.col === col)) {
+                            if (this.board[row][col]) {
+                                cell.classList.add('can-capture');
+                            } else {
+                                cell.classList.add('valid-move');
+                            }
+                        }
+
+                        cell.addEventListener('click', () => this.handleCellClick(row, col));
+                        boardElement.appendChild(cell);
+                    }
+                }
+            }
+
+            handleCellClick(row, col) {
+                const piece = this.board[row][col];
+
+                // If a piece is selected and this is a valid move
+                if (this.selectedPiece &&
+                    this.validMoves.some(move => move.row === row && move.col === col)) {
+                    this.makeMove(this.selectedPiece.row, this.selectedPiece.col, row, col);
+                    return;
+                }
+
+                // Select a piece
+                if (piece && piece.color === this.currentPlayer) {
+                    this.selectedPiece = { row, col };
+                    this.validMoves = this.getValidMoves(row, col);
+                    this.renderBoard();
+                } else {
+                    this.selectedPiece = null;
+                    this.validMoves = [];
+                    this.renderBoard();
+                }
+            }
+
+            getValidMoves(row, col) {
+                const piece = this.board[row][col];
+                if (!piece) return [];
+
+                let moves = [];
+
+                switch (piece.type) {
+                    case 'general':
+                        moves = this.getGeneralMoves(row, col, piece.color);
+                        break;
+                    case 'advisor':
+                        moves = this.getAdvisorMoves(row, col, piece.color);
+                        break;
+                    case 'elephant':
+                        moves = this.getElephantMoves(row, col, piece.color);
+                        break;
+                    case 'horse':
+                        moves = this.getHorseMoves(row, col, piece.color);
+                        break;
+                    case 'chariot':
+                        moves = this.getChariotMoves(row, col, piece.color);
+                        break;
+                    case 'cannon':
+                        moves = this.getCannonMoves(row, col, piece.color);
+                        break;
+                    case 'soldier':
+                        moves = this.getSoldierMoves(row, col, piece.color);
+                        break;
+                }
+
+                // Filter out moves that would put own general in check
+                return moves.filter(move => {
+                    return !this.wouldBeInCheck(row, col, move.row, move.col, piece.color);
+                });
+            }
+
+            getGeneralMoves(row, col, color) {
+                const moves = [];
+                const directions = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+
+                for (const [dr, dc] of directions) {
+                    const newRow = row + dr;
+                    const newCol = col + dc;
+
+                    if (this.isInPalace(newRow, newCol, color)) {
+                        const target = this.board[newRow][newCol];
+                        if (!target || target.color !== color) {
+                            moves.push({ row: newRow, col: newCol });
+                        }
+                    }
+                }
+
+                // Flying general rule - can't face opposing general directly
+                const opponentColor = color === 'red' ? 'black' : 'red';
+                const opponentGeneral = this.findGeneral(opponentColor);
+                if (opponentGeneral && col === opponentGeneral.col) {
+                    let blocked = false;
+                    const startRow = Math.min(row, opponentGeneral.row) + 1;
+                    const endRow = Math.max(row, opponentGeneral.row);
+                    for (let r = startRow; r < endRow; r++) {
+                        if (this.board[r][col]) {
+                            blocked = true;
+                            break;
+                        }
+                    }
+                    if (!blocked) {
+                        // Can move to capture opposing general (flying general move)
+                        moves.push({ row: opponentGeneral.row, col: opponentGeneral.col });
+                    }
+                }
+
+                return moves;
+            }
+
+            getAdvisorMoves(row, col, color) {
+                const moves = [];
+                const diagonals = [[1, 1], [1, -1], [-1, 1], [-1, -1]];
+
+                for (const [dr, dc] of diagonals) {
+                    const newRow = row + dr;
+                    const newCol = col + dc;
+
+                    if (this.isInPalace(newRow, newCol, color)) {
+                        const target = this.board[newRow][newCol];
+                        if (!target || target.color !== color) {
+                            moves.push({ row: newRow, col: newCol });
+                        }
+                    }
+                }
+
+                return moves;
+            }
+
+            getElephantMoves(row, col, color) {
+                const moves = [];
+                const directions = [[2, 2], [2, -2], [-2, 2], [-2, -2]];
+
+                for (const [dr, dc] of directions) {
+                    const newRow = row + dr;
+                    const newCol = col + dc;
+                    const blockRow = row + dr / 2;
+                    const blockCol = col + dc / 2;
+
+                    // Check if blocked and within bounds
+                    if (!this.board[blockRow][blockCol] &&
+                        this.isValidPosition(newRow, newCol) &&
+                        !this.crossesRiver(newRow, color)) {
+                        const target = this.board[newRow][newCol];
+                        if (!target || target.color !== color) {
+                            moves.push({ row: newRow, col: newCol });
+                        }
+                    }
+                }
+
+                return moves;
+            }
+
+            getHorseMoves(row, col, color) {
+                const moves = [];
+                const horseMoves = [
+                    { dr: -2, dc: -1, blockDr: -1, blockDc: 0 },
+                    { dr: -2, dc: 1, blockDr: -1, blockDc: 0 },
+                    { dr: 2, dc: -1, blockDr: 1, blockDc: 0 },
+                    { dr: 2, dc: 1, blockDr: 1, blockDc: 0 },
+                    { dr: -1, dc: -2, blockDr: 0, blockDc: -1 },
+                    { dr: -1, dc: 2, blockDr: 0, blockDc: 1 },
+                    { dr: 1, dc: -2, blockDr: 0, blockDc: -1 },
+                    { dr: 1, dc: 2, blockDr: 0, blockDc: 1 }
+                ];
+
+                for (const move of horseMoves) {
+                    const newRow = row + move.dr;
+                    const newCol = col + move.dc;
+                    const blockRow = row + move.blockDr;
+                    const blockCol = col + move.blockDc;
+
+                    if (this.isValidPosition(newRow, newCol) && !this.board[blockRow][blockCol]) {
+                        const target = this.board[newRow][newCol];
+                        if (!target || target.color !== color) {
+                            moves.push({ row: newRow, col: newCol });
+                        }
+                    }
+                }
+
+                return moves;
+            }
+
+            getChariotMoves(row, col, color) {
+                const moves = [];
+                const directions = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+
+                for (const [dr, dc] of directions) {
+                    let newRow = row + dr;
+                    let newCol = col + dc;
+
+                    while (this.isValidPosition(newRow, newCol)) {
+                        const target = this.board[newRow][newCol];
+                        if (!target) {
+                            moves.push({ row: newRow, col: newCol });
+                        } else {
+                            if (target.color !== color) {
+                                moves.push({ row: newRow, col: newCol });
+                            }
+                            break;
+                        }
+                        newRow += dr;
+                        newCol += dc;
+                    }
+                }
+
+                return moves;
+            }
+
+            getCannonMoves(row, col, color) {
+                const moves = [];
+                const directions = [[0, 1], [0, -1], [1, 0], [-1, 0]];
+
+                for (const [dr, dc] of directions) {
+                    let newRow = row + dr;
+                    let newCol = col + dc;
+                    let jumped = false;
+
+                    while (this.isValidPosition(newRow, newCol)) {
+                        const target = this.board[newRow][newCol];
+
+                        if (!jumped) {
+                            if (!target) {
+                                moves.push({ row: newRow, col: newCol });
+                            } else {
+                                jumped = true;
+                            }
+                        } else {
+                            if (target) {
+                                if (target.color !== color) {
+                                    moves.push({ row: newRow, col: newCol });
+                                }
+                                break;
+                            }
+                        }
+
+                        newRow += dr;
+                        newCol += dc;
+                    }
+                }
+
+                return moves;
+            }
+
+            getSoldierMoves(row, col, color) {
+                const moves = [];
+                const forward = color === 'red' ? -1 : 1;
+                const hasCrossedRiver = color === 'red' ? row < 5 : row > 4;
+
+                // Forward move
+                const forwardRow = row + forward;
+                if (this.isValidPosition(forwardRow, col)) {
+                    const target = this.board[forwardRow][col];
+                    if (!target || target.color !== color) {
+                        moves.push({ row: forwardRow, col });
+                    }
+                }
+
+                // Sideways moves (only after crossing river)
+                if (hasCrossedRiver) {
+                    for (const dc of [-1, 1]) {
+                        const newCol = col + dc;
+                        if (this.isValidPosition(row, newCol)) {
+                            const target = this.board[row][newCol];
+                            if (!target || target.color !== color) {
+                                moves.push({ row, col: newCol });
+                            }
+                        }
+                    }
+                }
+
+                return moves;
+            }
+
+            isInPalace(row, col, color) {
+                if (!this.isValidPosition(row, col)) return false;
+
+                if (color === 'red') {
+                    return row >= 7 && row <= 9 && col >= 3 && col <= 5;
+                } else {
+                    return row >= 0 && row <= 2 && col >= 3 && col <= 5;
+                }
+            }
+
+            crossesRiver(row, color) {
+                if (color === 'red') {
+                    return row < 5;
+                } else {
+                    return row > 4;
+                }
+            }
+
+            isValidPosition(row, col) {
+                return row >= 0 && row < 10 && col >= 0 && col < 9;
+            }
+
+            findGeneral(color) {
+                for (let row = 0; row < 10; row++) {
+                    for (let col = 0; col < 9; col++) {
+                        const piece = this.board[row][col];
+                        if (piece && piece.type === 'general' && piece.color === color) {
+                            return { row, col };
+                        }
+                    }
+                }
+                return null;
+            }
+
+            isInCheck(color) {
+                const general = this.findGeneral(color);
+                if (!general) return false;
+
+                const opponentColor = color === 'red' ? 'black' : 'red';
+
+                // Check if any opponent piece can capture the general
+                for (let row = 0; row < 10; row++) {
+                    for (let col = 0; col < 9; col++) {
+                        const piece = this.board[row][col];
+                        if (piece && piece.color === opponentColor) {
+                            const moves = this.getValidMovesWithoutCheckTest(row, col);
+                            if (moves.some(move => move.row === general.row && move.col === general.col)) {
+                                return true;
+                            }
+                        }
+                    }
+                }
+
+                return false;
+            }
+
+            getValidMovesWithoutCheckTest(row, col) {
+                const piece = this.board[row][col];
+                if (!piece) return [];
+
+                switch (piece.type) {
+                    case 'general': return this.getGeneralMoves(row, col, piece.color);
+                    case 'advisor': return this.getAdvisorMoves(row, col, piece.color);
+                    case 'elephant': return this.getElephantMoves(row, col, piece.color);
+                    case 'horse': return this.getHorseMoves(row, col, piece.color);
+                    case 'chariot': return this.getChariotMoves(row, col, piece.color);
+                    case 'cannon': return this.getCannonMoves(row, col, piece.color);
+                    case 'soldier': return this.getSoldierMoves(row, col, piece.color);
+                    default: return [];
+                }
+            }
+
+            wouldBeInCheck(fromRow, fromCol, toRow, toCol, color) {
+                // Simulate the move
+                const originalPiece = this.board[fromRow][fromCol];
+                const capturedPiece = this.board[toRow][toCol];
+
+                this.board[toRow][toCol] = originalPiece;
+                this.board[fromRow][fromCol] = null;
+
+                const inCheck = this.isInCheck(color);
+
+                // Undo the move
+                this.board[fromRow][fromCol] = originalPiece;
+                this.board[toRow][toCol] = capturedPiece;
+
+                return inCheck;
+            }
+
+            makeMove(fromRow, fromCol, toRow, toCol) {
+                const piece = this.board[fromRow][fromCol];
+                const capturedPiece = this.board[toRow][toCol];
+
+                // Save move to history
+                this.moveHistory.push({
+                    from: { row: fromRow, col: fromCol },
+                    to: { row: toRow, col: toCol },
+                    piece: piece,
+                    captured: capturedPiece
+                });
+
+                // Make the move
+                this.board[toRow][toCol] = piece;
+                this.board[fromRow][fromCol] = null;
+
+                // Clear selection
+                this.selectedPiece = null;
+                this.validMoves = [];
+
+                // Check for game over
+                if (capturedPiece && capturedPiece.type === 'general') {
+                    this.updateStatus(`${this.currentPlayer === 'red' ? '红方 (Red)' : '黑方 (Black)'} Wins!`, true);
+                    this.renderBoard();
+                    return;
+                }
+
+                // Switch turns
+                this.currentPlayer = this.currentPlayer === 'red' ? 'black' : 'red';
+
+                // Check if new player is in checkmate
+                if (this.isCheckmate(this.currentPlayer)) {
+                    const winner = this.currentPlayer === 'red' ? '黑方 (Black)' : '红方 (Red)';
+                    this.updateStatus(`Checkmate! ${winner} Wins!`, true);
+                } else if (this.isInCheck(this.currentPlayer)) {
+                    this.updateStatus('Check!');
+                } else {
+                    this.updateStatus('');
+                }
+
+                this.renderBoard();
+            }
+
+            isCheckmate(color) {
+                if (!this.isInCheck(color)) return false;
+
+                // Check if there's any legal move
+                for (let row = 0; row < 10; row++) {
+                    for (let col = 0; col < 9; col++) {
+                        const piece = this.board[row][col];
+                        if (piece && piece.color === color) {
+                            const moves = this.getValidMoves(row, col);
+                            if (moves.length > 0) {
+                                return false;
+                            }
+                        }
+                    }
+                }
+
+                return true;
+            }
+
+            updateStatus(message = '', gameOver = false) {
+                const turnElement = document.getElementById('currentTurn');
+                const statusElement = document.getElementById('statusMessage');
+
+                if (gameOver) {
+                    turnElement.textContent = 'Game Over';
+                    turnElement.className = 'current-turn';
+                } else {
+                    const playerName = this.currentPlayer === 'red' ? '红方 (Red)' : '黑方 (Black)';
+                    turnElement.textContent = `${playerName}'s Turn`;
+                    turnElement.className = `current-turn turn-${this.currentPlayer}`;
+                }
+
+                statusElement.textContent = message || 'Select a piece to move';
+            }
+
+            undoMove() {
+                if (this.moveHistory.length === 0) return;
+
+                const lastMove = this.moveHistory.pop();
+
+                this.board[lastMove.from.row][lastMove.from.col] = lastMove.piece;
+                this.board[lastMove.to.row][lastMove.to.col] = lastMove.captured;
+
+                this.currentPlayer = this.currentPlayer === 'red' ? 'black' : 'red';
+                this.selectedPiece = null;
+                this.validMoves = [];
+
+                this.updateStatus('');
+                this.renderBoard();
+            }
+
+            newGame() {
+                this.moveHistory = [];
+                this.selectedPiece = null;
+                this.validMoves = [];
+                this.currentPlayer = 'red';
+                this.initBoard();
+                this.renderBoard();
+                this.updateStatus('');
+            }
+        }
+
+        // Initialize game
+        const game = new ChineseChess();
+    </script>
+</body>
+</html>
